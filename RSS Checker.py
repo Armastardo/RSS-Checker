@@ -11,7 +11,8 @@ from PyQt5 import QtGui, QtCore
 from PyQt5.QtCore import Qt, QBasicTimer
 from PyQt5.QtWidgets import QApplication, QDesktopWidget, QWidget, QPushButton, QMainWindow, \
     QLabel, QGridLayout, QLineEdit, QMessageBox, QInputDialog, QComboBox, QDialog, QTableWidget, \
-    QTableWidgetItem, QHBoxLayout, QVBoxLayout, QHeaderView, QAbstractItemView, QStatusBar
+    QTableWidgetItem, QHBoxLayout, QVBoxLayout, QHeaderView, QAbstractItemView, QStatusBar, \
+    QSystemTrayIcon, QMenu
 
 
 if platform.system() == 'Windows':
@@ -25,6 +26,26 @@ handler = logging.StreamHandler()
 formatter = logging.Formatter('%(asctime)s - %(funcName)s - %(levelname)s - %(message)s')
 handler.setFormatter(formatter)
 logger.addHandler(handler)
+
+class TrayIcon(QSystemTrayIcon):
+    def __init__(self, icon):
+        super().__init__(icon)
+        self.menu = QMenu()
+        self.openAction = self.menu.addAction("Open RSS-Checker")
+        self.exitAction = self.menu.addAction("Exit")
+        self.setContextMenu(self.menu)
+        # Instance
+        self.mainWindow = Main()
+        self.mainWindow.show()
+        # Signals
+        self.openAction.triggered.connect(self.openWindow)
+        self.exitAction.triggered.connect(self.exitApp)
+
+    def openWindow(self):
+        self.mainWindow.show()
+
+    def exitApp(self):
+        sys.exit(0)
 
 class Main(QMainWindow):
     def __init__(self, *args, **kwargs):
@@ -80,7 +101,6 @@ class Main(QMainWindow):
         self.setStatusBar(self.statusBar)
         self.statusBar.showMessage("Ready")
         self.setWindowTitle('RSS Checker')
-        self.setWindowIcon(QtGui.QIcon('icon.png'))
 
     def enableButtons(self):
         if len(self.rssInput.text()) > 0:
@@ -326,6 +346,8 @@ class FeedEntries(QDialog):
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
-    program = Main()
-    program.show()
+    icon = QtGui.QIcon('icon.png')
+    tray = TrayIcon(icon)
+    tray.mainWindow.setWindowIcon(icon)
+    tray.show()
     sys.exit(app.exec_())
