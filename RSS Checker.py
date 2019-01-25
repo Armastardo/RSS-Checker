@@ -11,7 +11,7 @@ from PyQt5 import QtGui, QtCore
 from PyQt5.QtCore import Qt, QBasicTimer
 from PyQt5.QtWidgets import QApplication, QDesktopWidget, QWidget, QPushButton, QMainWindow, \
     QLabel, QGridLayout, QLineEdit, QMessageBox, QInputDialog, QComboBox, QDialog, QTableWidget, \
-    QTableWidgetItem, QHBoxLayout, QVBoxLayout, QHeaderView, QAbstractItemView
+    QTableWidgetItem, QHBoxLayout, QVBoxLayout, QHeaderView, QAbstractItemView, QStatusBar
 
 
 if platform.system() == 'Windows':
@@ -22,7 +22,6 @@ if platform.system() == 'Windows':
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
 handler = logging.StreamHandler()
-# func = inspect.currentframe().f_back.f_code
 formatter = logging.Formatter('%(asctime)s - %(funcName)s - %(levelname)s - %(message)s')
 handler.setFormatter(formatter)
 logger.addHandler(handler)
@@ -47,18 +46,13 @@ class Main(QMainWindow):
         inputLabel= QLabel("Looking for:", self)
         self.entryInput = QLineEdit(self)
         self.entryInput.textChanged.connect(self.enableButtons)
-        # self.btnHelpInput = QPushButton("Help", self)
-        # self.btnHelpInput.setToolTip("Help me with the input!")
-        # self.btnHelpInput.setEnabled(False)
-        # self.btnHelpInput.clicked.connect(self.helpInput)
 
         timerLabel = QLabel("Check:", self)
         self.combo = QComboBox(self)
         self.combo.addItems(["Once", "Every minute", "Every 5 minutes", "Every 15 minutes", "Every 30 minutes", "Every hour"])
         self.combo.setEnabled(False)
 
-        self.statusLabel = QLabel("", self)
-        self.lastLabel = QLabel("", self)
+        self.statusBar = QStatusBar()
 
         self.buttonStart = QPushButton("Check the RSS feed", self)
         self.buttonStart.setEnabled(False)
@@ -74,9 +68,6 @@ class Main(QMainWindow):
         grid.addWidget(self.combo, 3, 1, 1, 2)
         grid.addWidget(self.buttonStart, 4, 0, 1, 3)
 
-        grid.addWidget(self.statusLabel, 5, 0, 1,2)
-        grid.addWidget(self.lastLabel, 5, 2)
-
         self.rssdialog = FeedEntries()
         self.rssdialog.reloadButton.clicked.connect(self.showRss)
 
@@ -86,13 +77,13 @@ class Main(QMainWindow):
 
         layout.setLayout(grid)
 
-        self.statusBar().showMessage("Ready")
+        self.setStatusBar(self.statusBar)
+        self.statusBar.showMessage("Ready")
         self.setWindowTitle('RSS Checker')
         self.setWindowIcon(QtGui.QIcon('icon.png'))
 
     def enableButtons(self):
         if len(self.rssInput.text()) > 0:
-            # self.btnHelpInput.setEnabled(True)
             self.loadedFlag = False
             self.rssdialog.purgeAll()
             self.btnCheckRss.setEnabled(True)
@@ -104,14 +95,12 @@ class Main(QMainWindow):
                 self.combo.setEnabled(False)
         else:
             self.btnCheckRss.setEnabled(False)
-            # self.btnHelpInput.setEnabled(False)
-
 
     def rssEntriesWarning(self, feed):
         if len(feed.entries) == 0:
-            self.statusBar().showMessage("Warning!")
+            self.statusBar.showMessage("Warning!")
             QMessageBox.warning(self, "Warning!", "The current RSS has no entries.\nPlease make sure you are using a valid RSS feed")
-            self.statusBar().showMessage("Ready")
+            self.statusBar.showMessage("Ready")
             return True
         else:
             return False
@@ -129,7 +118,7 @@ class Main(QMainWindow):
                     self.timer.start(times[timer], self)
                     now = self.getTime()
                     message = "Last checked: "+ now
-                    self.statusLabel.setText(message)
+                    self.statusBar.showMessage(message)
                     self.buttonStart.setText('Stop')
         elif self.timer.isActive():
             self.btnCheckRss.setEnabled(True)
@@ -138,7 +127,7 @@ class Main(QMainWindow):
             self.rssInput.setEnabled(True)
             self.timer.stop()
             self.buttonStart.setText('Check the RSS feed')
-            self.statusLabel.setText("")
+            self.statusBar.clearMessage()
 
     def checkRSS(self):
         flag = False
@@ -151,15 +140,15 @@ class Main(QMainWindow):
         found = list()
 
         message = "Looking into the RSS feed for "+check+" ..."
-        self.statusBar().showMessage(message)
+        self.statusBar.showMessage(message)
 
         for post in entries:
             if name in post['title'].lower() and number in post['title'].lower():
                 found.append(post)
-                self.statusLabel.setText("")
+                self.statusBar.clearMessage()
                 flag = True
         if not flag:
-            self.statusBar().showMessage("Not found :(")
+            self.statusBar.showMessage("Not found :(")
         else:
             self.showRss(found)
         return flag
@@ -178,15 +167,15 @@ class Main(QMainWindow):
             self.entryInput.setEnabled(True)
             self.rssInput.setEnabled(True)
             self.buttonStart.setText('Check the RSS feed')
-            self.statusLabel.setText("")
+            self.statusBar.showMessage()
         else:
             message = "Last checked: "+self.getTime().zfill(2)
-            self.statusLabel.setText(message)
+            self.statusBar.showMessage(message)
 
     def getRss(self):
         rss = self.rssInput.text()
         if rss != str():
-            self.statusBar().showMessage("Reading the RSS Feed...")
+            self.statusBar.showMessage("Reading the RSS Feed...")
             feed = feedparser.parse(rss)
             if not self.rssEntriesWarning(feed):
                 entries = list()
