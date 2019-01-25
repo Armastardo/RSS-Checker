@@ -118,32 +118,21 @@ class Main(QMainWindow):
 
     def startChecking(self):
         if not self.timer.isActive():
-            rss = self.rssInput.text()
-            feed = feedparser.parse(rss)
-            if not self.rssEntriesWarning(feed):
-                if not self.checkRSS():
-                    timer = self.combo.currentIndex()
-                    times = [0, 60000, 300000, 900000, 1800000, 3600000]
-                    if timer != 0:
-                        self.btnCheckRss.setEnabled(False)
-                        # self.btnHelpInput.setEnabled(False)
-                        self.combo.setEnabled(False)
-                        self.entryInput.setEnabled(False)
-                        self.rssInput.setEnabled(False)
-                        self.timer.start(times[timer], self)
-                        now = datetime.datetime.now()
-                        strHour = str(now.hour)
-                        strMin = str(now.minute)
-                        if len(strHour) == 1:
-                            strHour = "0"+strHour
-                        if len(strMin) == 1:
-                            strMin = "0"+ strMin
-                        message = "Last checked: "+ strHour +":"+ strMin
-                        self.statusLabel.setText(message)
-                        self.buttonStart.setText('Stop')
+            if not self.checkRSS():
+                timer = self.combo.currentIndex()
+                times = [0, 60000, 300000, 900000, 1800000, 3600000]
+                if timer != 0:
+                    self.btnCheckRss.setEnabled(False)
+                    self.combo.setEnabled(False)
+                    self.entryInput.setEnabled(False)
+                    self.rssInput.setEnabled(False)
+                    self.timer.start(times[timer], self)
+                    now = self.getTime()
+                    message = "Last checked: "+ now
+                    self.statusLabel.setText(message)
+                    self.buttonStart.setText('Stop')
         elif self.timer.isActive():
             self.btnCheckRss.setEnabled(True)
-            # self.btnHelpInput.setEnabled(True)
             self.combo.setEnabled(True)
             self.entryInput.setEnabled(True)
             self.rssInput.setEnabled(True)
@@ -154,29 +143,25 @@ class Main(QMainWindow):
     def checkRSS(self):
         flag = False
 
-        rss = self.rssInput.text()
+        entries = self.getRss()
+        if entries == list():
+            return False
         check = self.entryInput.text()
         name, number = self.getWords(check)
+        found = list()
 
         message = "Looking into the RSS feed for "+check+" ..."
         self.statusBar().showMessage(message)
 
-        feed = feedparser.parse(rss)
-        for post in feed.entries:
-            if name in post.title.lower() and number in post.title.lower():
-                message = "It's here! - " + check
-                self.statusBar().showMessage(message)
-                message = "Found a post that matches.\n"
-                message += post.title
-                message += "\nDo you want to visit the page?"
-                reply = QMessageBox.warning(self, "It's here", message, QMessageBox.Yes, QMessageBox.No)
-                if reply == QMessageBox.Yes:
-                    webbrowser.open(post.link)
+        for post in entries:
+            if name in post['title'].lower() and number in post['title'].lower():
+                found.append(post)
                 self.statusLabel.setText("")
                 flag = True
-                break
         if not flag:
             self.statusBar().showMessage("Not found :(")
+        else:
+            self.showRss(found)
         return flag
 
     def getTime(self):
@@ -189,7 +174,6 @@ class Main(QMainWindow):
         if self.checkRSS():
             self.timer.stop()
             self.btnCheckRss.setEnabled(True)
-            # self.btnHelpInput.setEnabled(True)
             self.combo.setEnabled(True)
             self.entryInput.setEnabled(True)
             self.rssInput.setEnabled(True)
@@ -210,16 +194,24 @@ class Main(QMainWindow):
                 for post in feed.entries:
                     entry = {"title": post.title, "link": post.link, "added": now}
                     entries.append(entry)
+            else:
+                return list()
         return entries
 
-    def showRss(self):
-        logger.info(self.loadedFlag)
+    def showRss(self, entries=None):
+        logger.info(entries)
+        if not entries:
+            results = self.getRss()
+        else:
+            results = entries
+        if results == list():
+            return
         if not self.loadedFlag:
             self.loadedFlag = True
-            for i in self.getRss():
+            for i in results:
                 self.rssdialog.addItems(i, self.rssdialog.feedlist.rowCount())
         else:
-            for i in reversed(self.getRss()):
+            for i in reversed(results):
                 self.rssdialog.addItems(i, 0)
         self.rssdialog.show()
 
@@ -276,6 +268,7 @@ class FeedEntries(QDialog):
         hlayout.addWidget(self.feedlist)
         hlayout.addLayout(vlayout)
         self.removeButton.clicked.connect(self.removeSelected)
+        self.feedlist.itemDoubleClicked.connect(self.openWeb)
 
     def addItems(self, entry, place):
         find = self.feedlist.findItems(entry['link'], Qt.MatchExactly)
@@ -334,6 +327,13 @@ class FeedEntries(QDialog):
                 temp += 1
             else:
                 temp -= 1
+
+    def openWeb(self):
+        row = self.feedlist.currentRow()
+        item = self.feedlist.item(row, 2)
+        link = item.text()
+        webbrowser.open(link)
+
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
