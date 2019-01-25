@@ -213,11 +213,13 @@ class Main(QMainWindow):
         return entries
 
     def showRss(self):
+        logger.info(self.loadedFlag)
         if not self.loadedFlag:
+            self.loadedFlag = True
             for i in self.getRss():
                 self.rssdialog.addItems(i, self.rssdialog.feedlist.rowCount())
         else:
-            for i in self.getRss():
+            for i in reversed(self.getRss()):
                 self.rssdialog.addItems(i, 0)
         self.rssdialog.show()
 
@@ -276,19 +278,17 @@ class FeedEntries(QDialog):
         self.removeButton.clicked.connect(self.removeSelected)
 
     def addItems(self, entry, place):
-        logger.debug(entry)
         find = self.feedlist.findItems(entry['link'], Qt.MatchExactly)
         if find != list():
             logger.debug(find)
             return
         rows = self.feedlist.rowCount()
+        self.feedlist.setRowCount(rows+1)
         if place != rows:
             self.relocateItems(place, False)
-        self.feedlist.setRowCount(rows+1)
         items = (QTableWidgetItem(entry['added']),
                 QTableWidgetItem(entry['title']),
                 QTableWidgetItem(entry['link']))
-        logger.debug(items)
         for i in range(0, 3):
             items[i].setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
             self.feedlist.setItem(place, i, items[i])
@@ -316,11 +316,12 @@ class FeedEntries(QDialog):
         else:
             temp = rows
         while True:
+            logger.debug((temp, place))
             if removing:
                 if temp == rows:
                     break
             else:
-                if temp == place:
+                if temp < 0:
                     break
             for i in range(0, 3):
                 if removing:
